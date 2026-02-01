@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: resume-screener
+  
+  # MySQL Database Configuration
+  datasource:
+    url: jdbc:mysql://localhost:3306/resume_screener_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: Mehedi1105    
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        use_sql_comments: true
+  
+  # File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+      file-size-threshold: 2KB
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# Application Configuration
+app:
+  # Resume Processing Configuration
+  resume:
+    allowed-file-types: application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    max-file-size-mb: 10
+  
+  # Scoring Weights (can be adjusted)
+  scoring:
+    skill-weight: 0.50
+    experience-weight: 0.30
+    education-weight: 0.10
+    project-weight: 0.10
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.example.resumescreener: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
