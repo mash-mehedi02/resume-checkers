@@ -1,71 +1,78 @@
 const API_BASE = '/api';
 
-// Show/Hide sections
-function showSection(sectionId) {
-    document.querySelectorAll('.section').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    document.getElementById(sectionId).classList.add('active');
-    event.target.classList.add('active');
-    
-    // Load data when section is shown
-    if (sectionId === 'dashboard') {
-        loadDashboard();
-    } else if (sectionId === 'jobs') {
-        loadJobs();
-    } else if (sectionId === 'resumes') {
-        loadResumes();
-    } else if (sectionId === 'rankings') {
-        loadJobSelect();
+// Section Management
+function showSection(sectionId, button) {
+    const sections = document.querySelectorAll('.section');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    sections.forEach(section => section.classList.remove('active'));
+    navItems.forEach(item => item.classList.remove('active'));
+
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) targetSection.classList.add('active');
+
+    if (button && button.classList.contains('nav-item')) {
+        button.classList.add('active');
+    } else {
+        const navItem = document.querySelector(`.nav-item[onclick*="'${sectionId}'"]`);
+        if (navItem) navItem.classList.add('active');
     }
+
+    // Load data based on current section
+    switch (sectionId) {
+        case 'dashboard': loadDashboard(); break;
+        case 'jobs': loadJobs(); break;
+        case 'resumes': loadResumes(); break;
+        case 'rankings': loadJobSelect(); break;
+    }
+
+    // Close mobile sidebar if open
+    document.getElementById('sidebar').classList.remove('active');
 }
 
-// Show loading overlay
-function showLoading() {
-    document.getElementById('loadingOverlay').style.display = 'flex';
+// Global UI State
+function toggleLoading(show) {
+    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
 }
 
-function hideLoading() {
-    document.getElementById('loadingOverlay').style.display = 'none';
-}
-
-// Show toast notification
 function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
+    const container = document.getElementById('toast');
+    const toast = document.createElement('div');
+    toast.className = `toast-msg ${type}`;
     toast.textContent = message;
-    toast.className = `toast ${type} show`;
-    
+
+    container.appendChild(toast);
+
     setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
 }
 
-// API Calls
+// API Integration
 async function apiCall(endpoint, method = 'GET', body = null) {
     try {
-        const options = {
-            method,
-            headers: {}
-        };
-        
+        const options = { method, headers: {} };
         if (body instanceof FormData) {
             options.body = body;
         } else if (body) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
         }
-        
+
         const response = await fetch(`${API_BASE}${endpoint}`, options);
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'An error occurred');
+        if (response.status === 204) return null;
+
+        const contentType = response.headers.get('content-type') || '';
+        let data = null;
+        if (contentType.includes('application/json')) {
+            data = await response.json();
         }
-        
+
+        if (!response.ok) {
+            throw new Error(data?.message || 'Execution failed');
+        }
         return data;
     } catch (error) {
         showToast(error.message, 'error');
@@ -73,55 +80,85 @@ async function apiCall(endpoint, method = 'GET', body = null) {
     }
 }
 
-// Dashboard
+// Dashboard Logic
 async function loadDashboard() {
-    showLoading();
+    toggleLoading(true);
     try {
-        const jobs = await apiCall('/jobs');
-        const resumes = await apiCall('/resumes');
-        
-        document.getElementById('totalJobs').textContent = jobs.length || 0;
-        document.getElementById('totalResumes').textContent = resumes.length || 0;
-        
-        // Calculate average score (if rankings exist)
+        const [jobs, resumes] = await Promise.all([
+            apiCall('/jobs'),
+            apiCall('/resumes')
+        ]);
+
+        document.getElementById('totalJobs').textContent = jobs?.length || 0;
+        document.getElementById('totalResumes').textContent = resumes?.length || 0;
+
         let totalScore = 0;
         let count = 0;
-        if (jobs.length > 0) {
+        let maxRankCount = 0;
+
+        if (jobs?.length > 0) {
             for (const job of jobs) {
                 try {
                     const rankings = await apiCall(`/ranking/${job.id}`);
-                    rankings.forEach(r => {
-                        totalScore += parseFloat(r.finalScore || 0);
-                        count++;
-                    });
-                } catch (e) {
-                    // Ignore errors
-                }
+                    if (rankings) {
+                        rankings.forEach(r => {
+                            totalScore += parseFloat(r.finalScore || 0);
+                            count++;
+                        });
+                        maxRankCount = Math.max(maxRankCount, rankings.length);
+                    }
+                } catch (e) { }
             }
         }
-        
-        const avgScore = count > 0 ? (totalScore / count).toFixed(1) : 0;
-        document.getElementById('avgScore').textContent = avgScore;
-        
-        // Load recent activity
-        loadActivity();
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
+
+        document.getElementById('avgScore').textContent = count > 0 ? (totalScore / count).toFixed(0) : 0;
+        document.getElementById('topRanked').textContent = maxRankCount;
+
+        renderActivity(jobs, resumes);
+    } catch (e) {
+        console.error(e);
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
-function loadActivity() {
-    const activityList = document.getElementById('activityList');
-    activityList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No recent activity</p>';
-    // Can be enhanced to show actual activity
+function renderActivity(jobs = [], resumes = []) {
+    const list = document.getElementById('activityList');
+    const items = [];
+
+    jobs?.slice(0, 3).forEach(j => items.push({
+        type: 'job',
+        title: j.title,
+        desc: `New opening created • ${formatDate(j.createdAt)}`,
+        icon: '💼'
+    }));
+
+    resumes?.slice(0, 3).forEach(r => items.push({
+        type: 'resume',
+        title: r.candidateName || r.fileName,
+        desc: `Resume parsed and indexed • ${formatDate(r.uploadedAt)}`,
+        icon: '📄'
+    }));
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="empty-state">No operations logged yet</div>';
+        return;
+    }
+
+    list.innerHTML = items.map(item => `
+        <div class="activity-item">
+            <div class="activity-icon">${item.icon}</div>
+            <div class="activity-content">
+                <h4>${item.title}</h4>
+                <p>${item.desc}</p>
+            </div>
+        </div>
+    `).join('');
 }
 
-// Jobs
+// Job Management
 function showCreateJobForm() {
-    document.getElementById('createJobForm').style.display = 'block';
-    document.getElementById('jobForm').reset();
+    document.getElementById('createJobForm').style.display = 'flex';
 }
 
 function hideCreateJobForm() {
@@ -130,68 +167,57 @@ function hideCreateJobForm() {
 
 async function createJob(event) {
     event.preventDefault();
-    showLoading();
-    
+    toggleLoading(true);
     try {
-        const jobData = {
+        const data = {
             title: document.getElementById('jobTitle').value,
             description: document.getElementById('jobDescription').value,
             requiredSkills: document.getElementById('requiredSkills').value,
             preferredSkills: document.getElementById('preferredSkills').value,
             minExperienceYears: parseInt(document.getElementById('minExperience').value),
-            educationLevel: document.getElementById('educationLevel').value || null,
-            jobType: document.getElementById('jobType').value || null
+            educationLevel: document.getElementById('educationLevel').value || null
         };
-        
-        await apiCall('/jobs', 'POST', jobData);
-        showToast('Job created successfully!');
+        await apiCall('/jobs', 'POST', data);
+        showToast('Role created successfully');
         hideCreateJobForm();
         loadJobs();
-        loadDashboard();
-    } catch (error) {
-        console.error('Error creating job:', error);
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
 async function loadJobs() {
-    showLoading();
+    toggleLoading(true);
     try {
-        const jobs = await apiCall('/jobs');
-        const jobsList = document.getElementById('jobsList');
-        
+        const jobs = await apiCall('/jobs') || [];
+        const container = document.getElementById('jobsList');
+
         if (jobs.length === 0) {
-            jobsList.innerHTML = '<div class="form-container"><p style="text-align: center; color: var(--text-secondary);">No jobs created yet. Create your first job!</p></div>';
+            container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1">No active openings found</div>';
             return;
         }
-        
-        jobsList.innerHTML = jobs.map(job => `
+
+        container.innerHTML = jobs.map(j => `
             <div class="job-card">
-                <h3>${job.title}</h3>
-                <p>${job.description}</p>
-                <div class="skills">
-                    ${job.requiredSkills.split(',').map(skill => `<span class="skill-tag">${skill.trim()}</span>`).join('')}
+                <h3>${j.title}</h3>
+                <p>${j.description}</p>
+                <div class="skills-row">
+                    ${j.requiredSkills.split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).join('')}
                 </div>
-                <div class="meta">
-                    <span>📅 ${new Date(job.createdAt).toLocaleDateString()}</span>
-                    <span>💼 ${job.minExperienceYears} years exp</span>
-                    ${job.educationLevel ? `<span>🎓 ${job.educationLevel}</span>` : ''}
-                    ${job.jobType ? `<span>🔧 ${job.jobType}</span>` : ''}
+                <div class="meta-row">
+                    <span>📅 ${formatDate(j.createdAt)}</span>
+                    <span>📍 ${j.minExperienceYears}+ Years</span>
                 </div>
             </div>
         `).join('');
-    } catch (error) {
-        console.error('Error loading jobs:', error);
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
-// Resumes
+// Resume Management
 function showUploadForm() {
-    document.getElementById('uploadForm').style.display = 'block';
-    document.getElementById('resumeForm').reset();
+    document.getElementById('uploadForm').style.display = 'flex';
 }
 
 function hideUploadForm() {
@@ -200,170 +226,124 @@ function hideUploadForm() {
 
 async function uploadResume(event) {
     event.preventDefault();
-    showLoading();
-    
+    const fileInput = document.getElementById('resumeFile');
+    if (!fileInput.files[0]) return showToast('Please select a file', 'error');
+
+    toggleLoading(true);
     try {
         const formData = new FormData();
-        const fileInput = document.getElementById('resumeFile');
-        const candidateName = document.getElementById('candidateName').value;
-        
-        if (!fileInput.files[0]) {
-            showToast('Please select a file', 'error');
-            hideLoading();
-            return;
-        }
-        
         formData.append('file', fileInput.files[0]);
-        if (candidateName) {
-            formData.append('candidateName', candidateName);
-        }
-        
-        const response = await fetch(`${API_BASE}/resumes/upload`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Upload failed');
-        }
-        
-        const data = await response.json();
-        showToast('Resume uploaded and parsed successfully!');
+        const name = document.getElementById('candidateName').value;
+        if (name) formData.append('candidateName', name);
+
+        await apiCall('/resumes/upload', 'POST', formData);
+        showToast('Profile indexed successfully');
         hideUploadForm();
         loadResumes();
-        loadDashboard();
-    } catch (error) {
-        showToast(error.message, 'error');
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
 async function loadResumes() {
-    showLoading();
+    toggleLoading(true);
     try {
-        const resumes = await apiCall('/resumes');
-        const resumesList = document.getElementById('resumesList');
-        
+        const resumes = await apiCall('/resumes') || [];
+        const container = document.getElementById('resumesList');
+
         if (resumes.length === 0) {
-            resumesList.innerHTML = '<div class="form-container"><p style="text-align: center; color: var(--text-secondary);">No resumes uploaded yet. Upload your first resume!</p></div>';
+            container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1">Database is empty</div>';
             return;
         }
-        
-        resumesList.innerHTML = resumes.map(resume => `
+
+        container.innerHTML = resumes.map(r => `
             <div class="resume-card">
-                <h3>${resume.candidateName || resume.fileName || 'Resume #' + resume.id}</h3>
-                <p>📄 ${resume.fileName}</p>
-                ${resume.parsedSkills ? `
-                    <div class="skills" style="margin-top: 15px;">
-                        ${resume.parsedSkills.split(',').map(skill => `<span class="skill-tag">${skill.trim()}</span>`).join('')}
-                    </div>
-                ` : ''}
-                <div class="meta">
-                    <span>📅 ${new Date(resume.uploadedAt).toLocaleDateString()}</span>
-                    ${resume.experienceYears ? `<span>💼 ${resume.experienceYears} years exp</span>` : ''}
-                    ${resume.educationLevel ? `<span>🎓 ${resume.educationLevel}</span>` : ''}
-                    ${resume.fileSize ? `<span>📦 ${(resume.fileSize / 1024).toFixed(1)} KB</span>` : ''}
+                <h3>${r.candidateName || r.fileName}</h3>
+                <div class="skills-row">
+                    ${r.parsedSkills ? r.parsedSkills.split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).join('') : '<span class="skill-tag">Parsing...</span>'}
+                </div>
+                <div class="meta-row">
+                    <span>📄 ${r.fileName}</span>
+                    <span>📏 ${(r.fileSize / 1024).toFixed(0)}KB</span>
                 </div>
             </div>
         `).join('');
-    } catch (error) {
-        console.error('Error loading resumes:', error);
-        const resumesList = document.getElementById('resumesList');
-        resumesList.innerHTML = '<div class="form-container"><p style="text-align: center; color: var(--text-secondary);">Error loading resumes. Please try again.</p></div>';
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
-// Rankings
+// Ranking Engine
 async function loadJobSelect() {
-    showLoading();
     try {
-        const jobs = await apiCall('/jobs');
-        const jobSelect = document.getElementById('jobSelect');
-        
-        jobSelect.innerHTML = '<option value="">-- Select Job --</option>' +
-            jobs.map(job => `<option value="${job.id}">${job.title}</option>`).join('');
-        
-        if (jobs.length === 0) {
-            document.getElementById('rankingsList').innerHTML = 
-                '<div class="form-container"><p style="text-align: center; color: var(--text-secondary);">No jobs available. Create a job first!</p></div>';
-        }
-    } catch (error) {
-        console.error('Error loading jobs:', error);
-    } finally {
-        hideLoading();
-    }
+        const jobs = await apiCall('/jobs') || [];
+        const select = document.getElementById('jobSelect');
+        select.innerHTML = '<option value="">Select an active role...</option>' +
+            jobs.map(j => `<option value="${j.id}">${j.title}</option>`).join('');
+    } catch (e) { }
 }
 
 async function loadRankings() {
     const jobId = document.getElementById('jobSelect').value;
     if (!jobId) {
-        document.getElementById('rankingsList').innerHTML = '';
+        document.getElementById('rankingsList').innerHTML = '<div class="empty-state-large"><h3>No job selected</h3><p>Select a job opening above to see matching candidates.</p></div>';
         return;
     }
-    
-    showLoading();
+
+    toggleLoading(true);
     try {
-        const rankings = await apiCall(`/ranking/${jobId}`);
-        const rankingsList = document.getElementById('rankingsList');
-        
+        const rankings = await apiCall(`/ranking/${jobId}`) || [];
+        const container = document.getElementById('rankingsList');
+
         if (rankings.length === 0) {
-            rankingsList.innerHTML = '<div class="form-container"><p style="text-align: center; color: var(--text-secondary);">No resumes ranked yet. Upload resumes first!</p></div>';
+            container.innerHTML = '<div class="empty-state-large"><h3>No matches found</h3><p>Try uploading more resumes or broadening job criteria.</p></div>';
             return;
         }
-        
-        rankingsList.innerHTML = rankings.map((ranking, index) => {
-            const rankClass = ranking.rank === 1 ? 'gold' : ranking.rank === 2 ? 'silver' : ranking.rank === 3 ? 'bronze' : 'other';
-            
+
+        container.innerHTML = rankings.map((r, i) => {
+            const rankClass = (i === 0) ? 'gold' : (i === 1) ? 'silver' : (i === 2) ? 'bronze' : 'other';
             return `
                 <div class="ranking-card">
-                    <div class="rank-badge ${rankClass}">${ranking.rank}</div>
+                    <div class="rank-badge ${rankClass}">${i + 1}</div>
                     <div class="ranking-info">
-                        <h3>${ranking.candidateName || ranking.fileName || 'Candidate'}</h3>
-                        <p>📄 ${ranking.fileName}</p>
-                        <div class="score-breakdown">
-                            <div class="score-item">
-                                <div class="label">Skills</div>
-                                <div class="value">${parseFloat(ranking.skillScore).toFixed(1)}</div>
-                            </div>
-                            <div class="score-item">
-                                <div class="label">Experience</div>
-                                <div class="value">${parseFloat(ranking.experienceScore).toFixed(1)}</div>
-                            </div>
-                            <div class="score-item">
-                                <div class="label">Education</div>
-                                <div class="value">${parseFloat(ranking.educationScore).toFixed(1)}</div>
-                            </div>
-                            <div class="score-item">
-                                <div class="label">Projects</div>
-                                <div class="value">${parseFloat(ranking.projectScore).toFixed(1)}</div>
-                            </div>
-                        </div>
-                        ${ranking.matchedSkills && ranking.matchedSkills.length > 0 ? `
-                            <div class="skills" style="margin-top: 10px;">
-                                ${Array.from(ranking.matchedSkills).map(skill => `<span class="skill-tag">✓ ${skill}</span>`).join('')}
-                            </div>
-                        ` : ''}
+                        <h3>${r.candidateName || r.fileName}</h3>
+                        <p>${r.matchedSkills?.join(', ') || 'No skill overlap detected'}</p>
                     </div>
-                    <div class="final-score">
-                        <div class="label">Final Score</div>
-                        <div class="value">${parseFloat(ranking.finalScore).toFixed(1)}</div>
+                    <div class="scores-wrap">
+                        <div class="score-node"><span>Skills</span><strong>${parseFloat(r.skillScore).toFixed(0)}</strong></div>
+                        <div class="score-node"><span>Experience</span><strong>${parseFloat(r.experienceScore).toFixed(0)}</strong></div>
+                        <div class="score-node"><span>Education</span><strong>${parseFloat(r.educationScore).toFixed(0)}</strong></div>
+                    </div>
+                    <div class="final-wrap">
+                        <span>Relevancy</span>
+                        <h2>${parseFloat(r.finalScore).toFixed(0)}%</h2>
                     </div>
                 </div>
             `;
         }).join('');
-    } catch (error) {
-        showToast(error.message, 'error');
-        console.error('Error loading rankings:', error);
     } finally {
-        hideLoading();
+        toggleLoading(false);
     }
 }
 
-// Initialize
+// Helpers
+function formatDate(val) {
+    if (!val) return 'Recently';
+    const date = new Date(val);
+    return isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function updateStatus() {
+    try {
+        await fetch('/');
+        document.getElementById('apiStatusText').textContent = 'Live & Ready';
+    } catch (e) {
+        document.getElementById('apiStatusText').textContent = 'Connection Issue';
+    }
+}
+
+// Init
 document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
+    updateStatus();
 });

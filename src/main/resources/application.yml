@@ -2,13 +2,18 @@ spring:
   application:
     name: resume-screener
   
-  # MySQL Database Configuration
+  # H2 Database Configuration (In-Memory for easy running)
   datasource:
-    url: jdbc:mysql://localhost:3306/resume_screener_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: Mehedi1105    
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:h2:mem:resume_screener_db;DB_CLOSE_DELAY=-1
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
   
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
   # JPA/Hibernate Configuration
   jpa:
     hibernate:
@@ -16,7 +21,7 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
         use_sql_comments: true
   

@@ -4,42 +4,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Main Spring Boot Application Class
- * 
- * This is the entry point for the Resume Screening Application.
- * 
- * Features:
- * - REST API for job posting management
- * - Resume upload and text extraction using Apache Tika
- * - Resume parsing and structured data extraction
- * - Skill matching and scoring engine
- * - Candidate ranking system
- * 
- * @author Resume Screener Team
- * @version 1.0.0
- */
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = "com.example.resumescreener.repository")
 @EntityScan(basePackages = "com.example.resumescreener.model")
-@RestController
-@RequestMapping("")
 public class ResumeScreenerApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(ResumeScreenerApplication.class, args);
-    }
-
-    /**
-     * Health check endpoint
-     */
-    @GetMapping
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("Resume Screener API is running successfully with Java 21!");
     }
 }
