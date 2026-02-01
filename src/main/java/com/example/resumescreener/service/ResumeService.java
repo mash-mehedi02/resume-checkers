@@ -129,7 +129,7 @@ public class ResumeService {
         long maxSizeBytes = maxFileSizeMB * 1024 * 1024; // Convert MB to bytes
         if (file.getSize() > maxSizeBytes) {
             throw new InvalidFileException(
-                    String.format("File size exceeds maximum allowed size of %d MB", maxFileSizeMB)
+                    "File size exceeds maximum allowed size of %d MB".formatted(maxFileSizeMB)
             );
         }
 
@@ -145,7 +145,7 @@ public class ResumeService {
 
         if (!isAllowed) {
             throw new InvalidFileException(
-                    String.format("File type '%s' is not allowed. Allowed types: %s", 
+                    "File type '%s' is not allowed. Allowed types: %s".formatted(
                             contentType, allowedFileTypes)
             );
         }
