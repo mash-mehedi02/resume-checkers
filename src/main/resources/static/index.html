@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Screening System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>📄 Resume Screener</h1>
+                <p>Intelligent Resume Screening System</p>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" onclick="showSection('dashboard')">Dashboard</button>
+                <button class="nav-btn" onclick="showSection('jobs')">Jobs</button>
+                <button class="nav-btn" onclick="showSection('resumes')">Resumes</button>
+                <button class="nav-btn" onclick="showSection('rankings')">Rankings</button>
+            </nav>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <div class="section-header">
+                <h2>Dashboard</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">💼</div>
+                    <div class="stat-info">
+                        <h3 id="totalJobs">0</h3>
+                        <p>Total Jobs</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📄</div>
+                    <div class="stat-info">
+                        <h3 id="totalResumes">0</h3>
+                        <p>Total Resumes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-info">
+                        <h3 id="avgScore">0</h3>
+                        <p>Avg Score</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-info">
+                        <h3 id="topRanked">0</h3>
+                        <p>Top Ranked</p>
+                    </div>
+                </div>
+            </div>
+            <div class="recent-activity">
+                <h3>Recent Activity</h3>
+                <div id="activityList" class="activity-list"></div>
+            </div>
+        </section>
+
+        <!-- Jobs Section -->
+        <section id="jobs" class="section">
+            <div class="section-header">
+                <h2>Job Management</h2>
+                <button class="btn btn-primary" onclick="showCreateJobForm()">+ Create New Job</button>
+            </div>
+            
+            <!-- Create Job Form -->
+            <div id="createJobForm" class="form-container" style="display: none;">
+                <h3>Create New Job Posting</h3>
+                <form id="jobForm" onsubmit="createJob(event)">
+                    <div class="form-group">
+                        <label>Job Title *</label>
+                        <input type="text" id="jobTitle" required placeholder="e.g., Senior Java Developer">
+                    </div>
+                    <div class="form-group">
+                        <label>Description *</label>
+                        <textarea id="jobDescription" required rows="4" placeholder="Job description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Required Skills * (comma-separated)</label>
+                        <input type="text" id="requiredSkills" required placeholder="Java, Spring Boot, MySQL">
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred Skills (comma-separated)</label>
+                        <input type="text" id="preferredSkills" placeholder="Docker, Kubernetes">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Min Experience (Years) *</label>
+                            <input type="number" id="minExperience" required min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Education Level</label>
+                            <select id="educationLevel">
+                                <option value="">Select</option>
+                                <option value="Bachelor">Bachelor</option>
+                                <option value="Master">Master</option>
+                                <option value="PhD">PhD</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Job Type</label>
+                            <select id="jobType">
+                                <option value="">Select</option>
+                                <option value="Backend">Backend</option>
+                                <option value="Frontend">Frontend</option>
+                                <option value="Fullstack">Fullstack</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Create Job</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideCreateJobForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Jobs List -->
+            <div id="jobsList" class="jobs-list"></div>
+        </section>
+
+        <!-- Resumes Section -->
+        <section id="resumes" class="section">
+            <div class="section-header">
+                <h2>Resume Management</h2>
+                <button class="btn btn-primary" onclick="showUploadForm()">+ Upload Resume</button>
+            </div>
+
+            <!-- Upload Form -->
+            <div id="uploadForm" class="form-container" style="display: none;">
+                <h3>Upload Resume</h3>
+                <form id="resumeForm" onsubmit="uploadResume(event)">
+                    <div class="form-group">
+                        <label>Candidate Name (Optional)</label>
+                        <input type="text" id="candidateName" placeholder="e.g., John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label>Resume File * (PDF, DOCX, DOC)</label>
+                        <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" required>
+                        <small>Max file size: 10MB</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Upload Resume</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideUploadForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Resumes List -->
+            <div id="resumesList" class="resumes-list"></div>
+        </section>
+
+        <!-- Rankings Section -->
+        <section id="rankings" class="section">
+            <div class="section-header">
+                <h2>Candidate Rankings</h2>
+            </div>
+            <div class="form-group">
+                <label>Select Job</label>
+                <select id="jobSelect" onchange="loadRankings()">
+                    <option value="">-- Select Job --</option>
+                </select>
+            </div>
+            <div id="rankingsList" class="rankings-list"></div>
+        </section>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

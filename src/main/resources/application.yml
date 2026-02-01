@@ -31,8 +31,8 @@ spring:
 # Server Configuration
 server:
   port: 8080
-  servlet:
-    context-path: /api
+  # Removed context-path so static files are served at root
+  # APIs are still at /api/* because controllers have @RequestMapping("/api/...")
 
 # Application Configuration
 app:

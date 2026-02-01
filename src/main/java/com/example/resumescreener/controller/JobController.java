@@ -20,7 +20,7 @@ import java.util.List;
  * - GET /jobs - Get all jobs
  */
 @RestController
-@RequestMapping("/jobs")
+@RequestMapping("/api/jobs")
 public class JobController {
 
     private final JobService jobService;

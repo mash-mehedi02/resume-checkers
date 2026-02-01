@@ -101,6 +101,18 @@ public class ResumeService {
     }
 
     /**
+     * Retrieve all resumes.
+     * 
+     * @return List of all resumes
+     */
+    @Transactional(readOnly = true)
+    public List<ResumeResponse> getAllResumes() {
+        return resumeRepository.findAll().stream()
+                .map(this::convertToResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
      * Retrieve a resume by ID.
      * 
      * @param id Resume ID

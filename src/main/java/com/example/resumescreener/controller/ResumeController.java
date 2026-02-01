@@ -18,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
  * - POST /resumes/{id}/parse - Parse resume and extract structured data
  */
 @RestController
-@RequestMapping("/resumes")
+@RequestMapping("/api/resumes")
 public class ResumeController {
 
     private final ResumeService resumeService;
@@ -44,6 +44,17 @@ public class ResumeController {
         
         ResumeResponse resumeResponse = resumeService.uploadResume(file, candidateName);
         return ResponseEntity.status(HttpStatus.CREATED).body(resumeResponse);
+    }
+
+    /**
+     * Get all resumes.
+     * 
+     * @return List of all resumes with HTTP 200 status
+     */
+    @GetMapping
+    public ResponseEntity<java.util.List<ResumeResponse>> getAllResumes() {
+        java.util.List<ResumeResponse> resumes = resumeService.getAllResumes();
+        return ResponseEntity.ok(resumes);
     }
 
     /**

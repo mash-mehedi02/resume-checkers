@@ -15,7 +15,7 @@ import java.util.List;
  * - GET /ranking/{jobId} - Get ranked list of resumes for a job
  */
 @RestController
-@RequestMapping("/ranking")
+@RequestMapping("/api/ranking")
 public class RankingController {
 
     private final RankingService rankingService;
